@@ -102,4 +102,4 @@ Chi tiết cơ sở lý thuyết (Digital Twin, MQTT/TLS, Thing Shadow, mô hìn
 
 ## Giấy phép
 
-Chưa xác định — thêm file `LICENSE` nếu muốn công khai license cụ thể (MIT, GPL, ...).
+Dự án được phát hành theo giấy phép **MIT** — xem chi tiết trong file [`LICENSE`](./LICENSE).
