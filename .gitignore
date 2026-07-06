@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+__MACOSX/
+
+# Secrets - NEVER commit real AWS IoT keys/certs
+esp32_aws_iot/các key/*.pem.key
+esp32_aws_iot/các key/*.pem.crt
+esp32_aws_iot/certs_template/certificates.h
+esp32_aws_iot/**/*private*
+*.pem.key
+*.pem.crt
+
+# Simulink cache / temp artifacts (regenerate on build)
+*.slxc
+slprj/
+*.autosave
+
+# Compiled objects from generated code
+*.o
+*.obj
+
+# MATLAB
+*.asv
