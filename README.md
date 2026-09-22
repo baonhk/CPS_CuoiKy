@@ -37,7 +37,13 @@ A Digital Twin model runs in the cloud and predicts the expected motor speed. Th
 ### Project Demo
 
 <p align="center">
-  <img src="docs/demo/cps_demo_preview.gif" width="360" alt="DC Motor CPS live demonstration preview">
+  <a href="https://raw.githubusercontent.com/baonhk/CPS_CuoiKy/main/docs/demo/cps_demo_preview.mp4">
+    <img src="docs/demo/cps_demo_preview.gif" width="360" alt="DC Motor CPS live demonstration preview">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://raw.githubusercontent.com/baonhk/CPS_CuoiKy/main/docs/demo/cps_demo_preview.mp4"><b>▶ Watch MP4 Demo Preview</b></a>
 </p>
 
 The recorded demonstration shows the **physical DC motor prototype running beside the live monitoring dashboard**, allowing the measured RPM, PWM command, Digital Twin prediction, and diagnostic status to be observed while the hardware is operating.
@@ -279,7 +285,8 @@ CPS_CuoiKy/
 │   │   ├── hardware_model.webp
 │   │   └── dashboard_result.webp
 │   ├── demo/
-│   │   └── cps_demo_preview.gif
+│   │   ├── cps_demo_preview.gif
+│   │   └── cps_demo_preview.mp4
 │   ├── Baocao_2.docx
 │   └── baibao.html
 │
@@ -367,7 +374,8 @@ This project demonstrates practical experience in:
 
 Additional project material:
 
-- `docs/demo/cps_demo_preview.gif` — animated preview of the hardware + dashboard demonstration.
+- `docs/demo/cps_demo_preview.gif` — animated preview shown directly in the README.
+- `docs/demo/cps_demo_preview.mp4` — clickable MP4 demo preview of the running hardware + dashboard.
 - `docs/Baocao_2.docx` — full technical report.
 - `docs/baibao.html` — project paper.
 - `simulink/` — Digital Twin, system identification, and generated-code models.
