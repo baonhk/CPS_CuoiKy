@@ -1,105 +1,353 @@
-# Hệ Thống CPS Cho Điều Khiển Động Cơ DC (Digital Twin + Off-Board Diagnostics)
+# DC Motor Cyber-Physical System
+### Digital Twin · Embedded Control · ESP32 · AWS IoT · MATLAB/Simulink
 
-> Đồ án môn học **Hệ Thống CPS** — Khoa Điện Điện Tử, Trường Đại học Công nghệ Kỹ thuật TP. Hồ Chí Minh (HCMUTE), 06/2026.
+A Cyber-Physical System (CPS) for real-time DC motor control, cloud monitoring, Digital Twin prediction, and RMSE-based off-board diagnostics.
 
-**Nhóm thực hiện:**
-| Họ tên | MSSV |
-|---|---|
+**Tech Stack:** `Arduino Mega` · `ESP32` · `C/C++` · `UART` · `PWM` · `Wi-Fi` · `MQTT/TLS` · `AWS IoT Core` · `AWS Lambda` · `MATLAB/Simulink` · `Simscape`
+
+> Course project — Cyber-Physical Systems, Faculty of Electrical and Electronics Engineering, HCMUTE, 06/2026.
+
+## Team
+
+| Member | Student ID |
+|---|---:|
 | Huỳnh Thanh Phương | 22139052 |
 | Huỳnh Trọng Khiêm | 22139033 |
 | Thái Hữu Lợi | 23139027 |
 | Bùi Anh Duy | 23139007 |
-| Nguyễn Bình Khánh Bảo | 23139003 |
+| **Nguyễn Huỳnh Khánh Bảo** | **23139003** |
 
-## 1. Giới thiệu
+## 1. Project Overview
 
-Động cơ DC là thiết bị truyền động phổ biến trong hệ thống nhúng, robot và tự động hóa công nghiệp. Các phương pháp giám sát truyền thống (On-Board Diagnostics) đặt toàn bộ logic chẩn đoán lên vi điều khiển, gặp hạn chế về tài nguyên tính toán, khó cập nhật thuật toán và không thể giám sát tập trung nhiều thiết bị.
+This project builds a **Digital Twin-based CPS for a DC motor**. The physical motor is controlled by an Arduino Mega, while an ESP32 acts as the IoT gateway that sends operating data to AWS IoT Core through MQTT/TLS.
 
-Đồ án này xây dựng một hệ thống **Cyber-Physical System (CPS)** ứng dụng kỹ thuật **Digital Twin** kết hợp nền tảng **AWS Cloud** để chẩn đoán lỗi động cơ DC từ xa (**Off-Board Diagnostics**) — cụ thể là phát hiện lỗi suy giảm/mất nguồn cấp động cơ (lệnh PWM vẫn được gửi bình thường nhưng tốc độ thực tế thấp hơn đáng kể so với dự đoán của mô hình).
+A Digital Twin model runs in the cloud and predicts the expected motor speed. The system compares the **actual encoder speed** with the **predicted Digital Twin speed** and uses RMSE to detect abnormal operating conditions.
 
-### Mục tiêu
-- Điều khiển tốc độ động cơ DC bằng bộ điều khiển **Feedforward + PID** trên Arduino Mega.
-- Xây dựng mô hình **Digital Twin** của động cơ DC bằng Simscape (MATLAB) và định danh tham số hệ thống bằng **Parameter Estimation**.
-- Kết nối IoT giữa ESP32 và **AWS IoT Core** qua giao thức **MQTT/TLS**.
-- Triển khai mô hình Digital Twin lên **AWS Lambda** dưới dạng file thực thi Linux (sinh mã bằng Simulink Coder).
-- Thuật toán chẩn đoán lỗi dựa trên chỉ số **RMSE** giữa tốc độ thực và tốc độ dự đoán, hiển thị qua **web dashboard** thời gian thực.
+### Main Features
 
-## 2. Kiến trúc hệ thống
+- Real-time DC motor speed control using **Feedforward + PID**.
+- Quadrature encoder measurement for actual motor RPM.
+- ESP32 gateway for cloud communication.
+- Secure MQTT/TLS connection to **AWS IoT Core**.
+- DC motor Digital Twin built with **MATLAB/Simulink + Simscape**.
+- Cloud-side inference and diagnostics using **AWS Lambda**.
+- RMSE-based fault detection.
+- Real-time web dashboard for monitoring PWM, RPM, predicted speed, and system status.
 
-Hệ thống được tổ chức theo kiến trúc Digital Twin 3 lớp:
+---
 
-| Lớp | Thành phần | Vai trò |
+## 2. System Architecture
+
+The system is divided into three main layers:
+
+| Layer | Components | Function |
 |---|---|---|
-| **Vật lý** | Arduino Mega, MOSFET IRF3205, động cơ DC 12V + encoder quang (1856 CPR) | Điều khiển động cơ, đo tốc độ thực bằng encoder |
-| **Kết nối** | Level Shifter 5V↔3.3V, ESP32, MQTT/TLS, AWS IoT Core (Thing Shadow) | Truyền dữ liệu tốc độ/PWM lên cloud một cách bảo mật, độ trễ thấp |
-| **Kỹ thuật số** | AWS Lambda (chạy file thực thi sinh từ Simulink Coder), thuật toán so sánh RMSE, Web Dashboard | Mô phỏng song song với thiết bị thật, phát hiện phân kỳ bất thường → cảnh báo |
+| **Physical Layer** | Arduino Mega, MOSFET IRF3205, 12 V DC Motor, Encoder | Motor control and real-time speed acquisition |
+| **Connectivity Layer** | Level Shifter, ESP32, Wi-Fi, MQTT/TLS, AWS IoT Core | Secure telemetry transmission to the cloud |
+| **Digital Layer** | AWS Lambda, Digital Twin Model, RMSE Diagnostics, Web Dashboard | Prediction, condition monitoring, and fault detection |
 
-**Phần cứng:** Arduino Mega điều khiển động cơ DC qua PWM 8-bit + MOSFET IRF3205 (diode IN4007 bảo vệ xung áp ngược), đọc tốc độ qua encoder quang (bộ lọc thông thấp `H(s) = 1/(0.15s + 1)` để làm mượt nhiễu lượng tử hóa). Dữ liệu được chuyển tiếp qua Level Shifter sang ESP32 để publish lên AWS IoT Core.
+### Data Flow
 
-**Mô hình toán học động cơ DC:** kết hợp phương trình mạch armature (điện áp – dòng điện – back-EMF) và phương trình động học cơ (mô-men – quán tính – tải), được định danh bằng thực nghiệm quét PWM vòng hở và Simulink Parameter Estimation.
+```mermaid
+flowchart LR
+    A[PWM Reference] --> B[Arduino Mega]
+    B --> C[Motor Driver / MOSFET]
+    C --> D[DC Motor]
+    D --> E[Encoder]
+    E --> B
 
-## 3. Cấu trúc thư mục
-
+    B -->|RPM + PWM via UART| F[ESP32]
+    F -->|MQTT/TLS over Wi-Fi| G[AWS IoT Core]
+    G --> H[AWS Lambda]
+    H --> I[Digital Twin Model]
+    I --> J[Predicted RPM]
+    G --> K[Actual RPM]
+    J --> L[RMSE Diagnostics]
+    K --> L
+    L --> M[Web Dashboard]
 ```
+
+---
+
+## 3. Hardware Prototype
+
+<p align="center">
+  <img src="docs/images/hardware_model.webp" width="620" alt="DC motor CPS hardware prototype">
+</p>
+
+The physical prototype consists of:
+
+- **Arduino Mega** — real-time motor control and encoder processing.
+- **ESP32** — IoT gateway between the embedded controller and AWS.
+- **12 V DC Motor + Encoder** — physical plant and feedback sensor.
+- **Motor Driver / MOSFET stage** — drives the motor from PWM commands.
+- **Level shifting/interface circuitry** — supports communication between 5 V and 3.3 V devices.
+
+### Physical-Space Operation
+
+1. Arduino Mega generates an 8-bit PWM control command.
+2. The driver stage supplies the motor according to the PWM duty cycle.
+3. The encoder generates pulses proportional to motor rotation.
+4. Arduino calculates the actual motor speed in RPM.
+5. RPM and PWM data are forwarded to ESP32.
+6. ESP32 publishes telemetry to AWS IoT Core.
+
+---
+
+## 4. Digital Twin Operation
+
+The DC motor model combines the electrical armature dynamics and mechanical rotor dynamics.
+
+The model parameters are identified experimentally using an open-loop PWM sweep and **Simulink Parameter Estimation**.
+
+The Digital Twin runs in parallel with the physical system:
+
+```text
+Physical Motor                  Digital Twin
+-------------                  ------------
+PWM Command  -----------------> Model Input
+     |                              |
+     v                              v
+Actual RPM                    Predicted RPM
+     |                              |
+     +-------------+----------------+
+                   |
+                   v
+               RMSE Error
+                   |
+          +--------+--------+
+          |        |        |
+        Normal   Warning  Abnormal
+```
+
+The diagnostic metric is:
+
+```text
+RMSE = sqrt( (1/N) * Σ(actual_RPM - predicted_RPM)^2 )
+```
+
+A large increase in RMSE indicates that the physical motor behavior is diverging from the expected Digital Twin response.
+
+---
+
+## 5. Real-Time Dashboard & Experimental Result
+
+<p align="center">
+  <img src="docs/images/dashboard_result.webp" width="900" alt="DC Motor Digital Twin dashboard">
+</p>
+
+The dashboard displays:
+
+| Parameter | Purpose |
+|---|---|
+| **Actual Speed (RPM)** | Encoder speed measured from the real motor |
+| **PWM Command** | Current 8-bit motor control command |
+| **Predicted Speed (RPM)** | Digital Twin model output |
+| **RMSE** | Error between physical and predicted speed |
+| **Diagnostic Status** | Normal / warning / abnormal condition |
+| **Data Points / Packets** | Received telemetry samples |
+
+### Example Running Condition
+
+From the experimental dashboard:
+
+```text
+Actual Motor Speed     : 181 RPM
+PWM Command            : 86 / 255
+Predicted Motor Speed  : 170 RPM
+RMSE                   : 5.14 RPM
+Diagnostic Status      : NORMAL
+```
+
+The actual and predicted speeds track each other closely under normal conditions, producing a low RMSE value.
+
+### Fault Detection Concept
+
+A target fault case is a **motor power degradation or loss condition**:
+
+```text
+PWM command remains normal
+            |
+            v
+Physical motor speed decreases
+            |
+            v
+Digital Twin still predicts expected response
+            |
+            v
+Actual RPM and Predicted RPM diverge
+            |
+            v
+RMSE increases
+            |
+            v
+Warning / Abnormal state
+```
+
+This enables **off-board diagnostics**, where condition monitoring logic can be updated and executed in the cloud instead of being limited to the embedded controller.
+
+---
+
+## 6. Control & Signal Processing
+
+### Encoder Processing
+
+The encoder provides feedback for speed estimation. A low-pass filter is used to reduce quantization/noise effects:
+
+```text
+H(s) = 1 / (0.15s + 1)
+```
+
+### Motor Control
+
+The Arduino Mega performs the real-time control loop using:
+
+- Feedforward control
+- PID feedback control
+- 8-bit PWM output
+- Encoder-based RPM feedback
+
+This keeps timing-critical control on the embedded device while cloud services focus on monitoring, prediction, and diagnostics.
+
+---
+
+## 7. Cloud Communication
+
+The ESP32 acts as an IoT gateway:
+
+```text
+Arduino Mega
+    |
+    | UART
+    v
+ESP32
+    |
+    | Wi-Fi
+    | MQTT/TLS
+    v
+AWS IoT Core
+    |
+    +--> Telemetry / Device State
+    |
+    +--> AWS Lambda
+             |
+             v
+       Digital Twin
+             |
+             v
+       RMSE Diagnostics
+             |
+             v
+        Web Dashboard
+```
+
+The cloud architecture separates **real-time control** from **high-level monitoring and diagnostics**, improving scalability and maintainability.
+
+---
+
+## 8. Repository Structure
+
+```text
 CPS_CuoiKy/
-├── CPS_CuoiKy.prj                 # MATLAB Project — mở để tự động nạp path
+├── CPS_CuoiKy.prj
 ├── docs/
-│   ├── Baocao_2.docx               # Báo cáo đầy đủ (cơ sở lý thuyết, thiết kế, kết quả)
-│   └── baibao.html                 # Bài báo mô tả đề tài
+│   ├── images/
+│   │   ├── hardware_model.webp
+│   │   └── dashboard_result.webp
+│   ├── Baocao_2.docx
+│   └── baibao.html
+│
 ├── simulink/
-│   ├── Chapter_9_Section_3_1.slx           # Thí nghiệm quét PWM vòng hở (system ID)
-│   ├── Chapter_9_Section_3_1.slx.original
-│   ├── Chapter_9_Section_3_1_System_ID_Data.mat   # Dữ liệu PWM & tốc độ đo được
-│   ├── Chapter_9_Section_3_1.hex/.elf/.eep        # Firmware build từ model trên (Arduino Mega)
-│   ├── Chapter_9_Section_3_3.slx           # Fit tham số động cơ (Parameter Estimation)
-│   ├── Chapter_9_Section_5.slx             # Mô hình Digital Twin hoàn chỉnh
-│   ├── Chapter_9_Section_5_Script.m        # Script xử lý dữ liệu định danh hệ thống
-│   ├── generated_code/                     # Mã C (GRT) do Simulink Coder sinh từ mô hình Section 5
-│   │                                        #   → dùng để build file thực thi Linux triển khai lên AWS Lambda
+│   ├── Chapter_9_Section_3_1.slx
+│   ├── Chapter_9_Section_3_1_System_ID_Data.mat
+│   ├── Chapter_9_Section_3_3.slx
+│   ├── Chapter_9_Section_5.slx
+│   ├── Chapter_9_Section_5_Script.m
+│   ├── generated_code/
 │   └── sfunctions/
-│       ├── sfcn_encoder.c                  # S-Function Level-2: driver đọc encoder
-│       ├── sfcn_encoder_wrapper.c           # Wrapper: ISR đọc xung A/B, debounce, tính vị trí/tốc độ
-│       ├── sfcn_encoder.tlc
-│       ├── sfcn_encoder.mexw64             # Binary đã compile sẵn (Windows/MATLAB)
-│       └── rtwmakecfg.m
-└── esp32_aws_iot/
-    ├── esp32_aws_iot.ino               # Firmware ESP32: kết nối Wi-Fi + MQTT/TLS tới AWS IoT Core
-    ├── filetest.ino
-    └── certs_template/
-        └── generate_certificates.py    # Script sinh certificates.h từ cert/key AWS IoT Core
+│
+├── esp32_aws_iot/
+│   ├── esp32_aws_iot.ino
+│   ├── filetest.ino
+│   └── certs_template/
+│       └── generate_certificates.py
+│
+├── README.md
+└── LICENSE
 ```
 
-## 4. ⚠️ Bảo mật chứng chỉ AWS IoT
+---
 
-Bộ mã nguồn gốc có chứa **private key và certificate thật** cấp cho thiết bị trên AWS IoT Core
-(`*.pem.key`, `*.pem.crt`, và `certificates.h` nhúng sẵn key trong code). Các file này
-**đã được loại khỏi repository** (`.gitignore`) vì đây là repo public — lộ private key nghĩa là
-bất kỳ ai cũng có thể giả mạo thiết bị kết nối vào AWS IoT Core của bạn.
-
-Trước khi chạy lại `esp32_aws_iot.ino`, cần tạo bộ chứng chỉ mới:
-1. Trong AWS IoT Console, **thu hồi (revoke/deactivate)** certificate cũ nếu nó từng bị public — coi như đã lộ.
-2. Tạo Thing mới (hoặc dùng Thing hiện có) → **Create certificate** → tải về `xxxx-certificate.pem.crt`, `xxxx-private.pem.key`. Root CA (`AmazonRootCA1.pem`) đã có sẵn trong `certs_template/`.
-3. Chạy `python3 certs_template/generate_certificates.py`, trỏ tới cert/key thật của bạn, để sinh `certificates.h`.
-4. Đặt `certificates.h` cùng thư mục với `esp32_aws_iot.ino` trước khi biên dịch (Arduino IDE/PlatformIO).
-
-## 5. Môi trường & công cụ
-
-- **MATLAB/Simulink** (mô hình tạo bởi Simulink 26.1) + **Simscape**, **Simulink Coder**, **Parameter Estimation Toolbox**.
-- **Arduino IDE** hoặc **PlatformIO** — board **Arduino Mega** (điều khiển động cơ) và **ESP32** (kết nối cloud).
-- **AWS**: IoT Core (MQTT broker + Thing Shadow), Lambda (chạy Digital Twin), tài khoản AWS để tự cấp certificate.
-- **Python 3** cho `generate_certificates.py`.
-
-## 6. Cách mở project
+## 9. How to Open the MATLAB Project
 
 ```matlab
 prj = openProject('CPS_CuoiKy.prj');
 ```
-MATLAB sẽ tự động thêm các thư mục con (`simulink/`, `simulink/sfunctions/`, ...) vào path.
 
-## 7. Tài liệu tham khảo trong đồ án
+MATLAB will load the project and add the required Simulink and S-Function directories to the path.
 
-Chi tiết cơ sở lý thuyết (Digital Twin, MQTT/TLS, Thing Shadow, mô hình toán động cơ DC, thuật toán chẩn đoán RMSE), kết quả thực nghiệm và hình ảnh dashboard — xem đầy đủ trong `docs/Baocao_2.docx` và `docs/baibao.html`.
+### Development Environment
 
-## Giấy phép
+- MATLAB / Simulink
+- Simscape
+- Simulink Coder
+- Parameter Estimation
+- Arduino IDE or PlatformIO
+- Arduino Mega
+- ESP32
+- AWS IoT Core
+- AWS Lambda
+- Python 3
 
-Dự án được phát hành theo giấy phép **MIT** — xem chi tiết trong file [`LICENSE`](./LICENSE).
+---
+
+## 10. AWS IoT Certificate Security
+
+The original development files contained device certificates and private keys.
+
+These credentials **must never be committed to a public repository**.
+
+Before using the project again:
+
+1. Revoke any certificate that may have been exposed.
+2. Create a new AWS IoT certificate and private key.
+3. Keep the key files outside version control.
+4. Use `certs_template/generate_certificates.py` to generate the local `certificates.h`.
+5. Ensure credential files remain excluded by `.gitignore`.
+
+---
+
+## 11. Skills Demonstrated
+
+This project demonstrates practical experience in:
+
+- Embedded C/C++ firmware development
+- Arduino Mega and ESP32 integration
+- PWM motor control
+- Encoder signal acquisition
+- UART communication
+- Wi-Fi and MQTT/TLS
+- AWS IoT Core integration
+- Cloud-based diagnostics
+- MATLAB/Simulink and Simscape
+- System identification
+- Digital Twin modeling
+- Real-time data visualization
+- Cyber-Physical System architecture
+
+---
+
+## 12. Documentation
+
+Additional project material:
+
+- `docs/Baocao_2.docx` — full technical report.
+- `docs/baibao.html` — project paper.
+- `simulink/` — Digital Twin, system identification, and generated-code models.
+- `esp32_aws_iot/` — ESP32 AWS IoT firmware.
+
+---
+
+## License
+
+This project is released under the **MIT License**. See [LICENSE](./LICENSE).
