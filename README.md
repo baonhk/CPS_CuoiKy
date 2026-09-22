@@ -34,6 +34,30 @@ A Digital Twin model runs in the cloud and predicts the expected motor speed. Th
 - RMSE-based fault detection.
 - Real-time web dashboard for monitoring PWM, RPM, predicted speed, and system status.
 
+### Project Demo
+
+<p align="center">
+  <img src="docs/demo/cps_demo_preview.gif" width="360" alt="DC Motor CPS live demonstration preview">
+</p>
+
+The recorded demonstration shows the **physical DC motor prototype running beside the live monitoring dashboard**, allowing the measured RPM, PWM command, Digital Twin prediction, and diagnostic status to be observed while the hardware is operating.
+
+The demo validates the complete end-to-end data path:
+
+```text
+DC Motor + Encoder
+        ↓
+Arduino Mega
+        ↓ UART
+ESP32 IoT Gateway
+        ↓ MQTT/TLS
+AWS IoT Core
+        ↓
+Digital Twin + Diagnostics
+        ↓
+Live Web Dashboard
+```
+
 ---
 
 ## 2. System Architecture
@@ -254,6 +278,8 @@ CPS_CuoiKy/
 │   ├── images/
 │   │   ├── hardware_model.webp
 │   │   └── dashboard_result.webp
+│   ├── demo/
+│   │   └── cps_demo_preview.gif
 │   ├── Baocao_2.docx
 │   └── baibao.html
 │
@@ -341,6 +367,7 @@ This project demonstrates practical experience in:
 
 Additional project material:
 
+- `docs/demo/cps_demo_preview.gif` — animated preview of the hardware + dashboard demonstration.
 - `docs/Baocao_2.docx` — full technical report.
 - `docs/baibao.html` — project paper.
 - `simulink/` — Digital Twin, system identification, and generated-code models.
